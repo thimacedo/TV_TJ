@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { SlideContent, NewsSlide, WeatherSlide, TriviaSlide } from '../../domain/models';
 
 interface CarouselProps {
@@ -26,7 +27,14 @@ export const Carousel: React.FC<CarouselProps> = ({ slides }) => {
   const currentSlide = slides[currentIndex];
 
   const renderSlideLayout = (badge: string, headline: string, content: React.ReactNode, imageUrl: string) => (
-    <div style={{ ...styles.slideContent, backgroundImage: `url(${imageUrl})` }}>
+    <motion.div 
+      key={currentIndex}
+      initial={{ opacity: 0, scale: 1.05 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 1.2, ease: "easeInOut" }}
+      style={{ ...styles.slideContent, backgroundImage: `url(${imageUrl})` }}
+    >
       <div style={styles.overlay}>
         <div style={styles.logoContainer}>
           <img src="/LOGO-TJRN.svg" alt="TJRN Logo" style={styles.logo} onError={(e) => {
@@ -35,12 +43,32 @@ export const Carousel: React.FC<CarouselProps> = ({ slides }) => {
           }} />
         </div>
         <div style={styles.contentContainer}>
-          <span style={styles.badge}>{badge}</span>
-          <h1 style={styles.headline}>{headline}</h1>
-          {content}
+          <motion.span 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+            style={styles.badge}
+          >
+            {badge}
+          </motion.span>
+          <motion.h1 
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.7, duration: 0.8 }}
+            style={styles.headline}
+          >
+            {headline}
+          </motion.h1>
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.9, duration: 0.8 }}
+          >
+            {content}
+          </motion.div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 
   const renderNews = (slide: NewsSlide) => 
@@ -59,9 +87,11 @@ export const Carousel: React.FC<CarouselProps> = ({ slides }) => {
 
   return (
     <div style={styles.container}>
-      {currentSlide.type === 'NEWS' && renderNews(currentSlide as NewsSlide)}
-      {currentSlide.type === 'WEATHER' && renderWeather(currentSlide as WeatherSlide)}
-      {currentSlide.type === 'TRIVIA' && renderTrivia(currentSlide as TriviaSlide)}
+      <AnimatePresence mode="wait">
+        {currentSlide.type === 'NEWS' && renderNews(currentSlide as NewsSlide)}
+        {currentSlide.type === 'WEATHER' && renderWeather(currentSlide as WeatherSlide)}
+        {currentSlide.type === 'TRIVIA' && renderTrivia(currentSlide as TriviaSlide)}
+      </AnimatePresence>
       
       <div style={styles.progressContainer}>
         <div 
@@ -100,7 +130,9 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'flex-end',
-    animation: 'fadeIn 1s ease-in-out'
+    position: 'absolute',
+    top: 0,
+    left: 0
   },
   overlay: {
     background: 'linear-gradient(to top, rgba(0, 34, 68, 0.95) 0%, rgba(0, 34, 68, 0.6) 50%, rgba(0, 34, 68, 0.2) 100%)', // Blue-tinted gradient
