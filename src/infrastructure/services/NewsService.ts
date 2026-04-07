@@ -2,123 +2,149 @@ import { INewsService } from '../../domain/ports';
 import { NewsSlide } from '../../domain/models';
 
 export class NewsService implements INewsService {
-  private readonly baseUrl = 'https://www.tjrn.jus.br';
-  private readonly newsUrl = `${this.baseUrl}/noticias/`;
+  private readonly apiUrl = 'https://tjrn.jus.br/api/noticias';
+  private readonly htmlUrl = 'https://www.tjrn.jus.br/noticias/';
   private readonly proxyUrl = 'https://api.allorigins.win/get?url=';
+  private readonly localRssUrl = './tjrn_noticias_imagens.xml';
   private readonly defaultImageUrl = 'https://tjrn.jus.br/wp-content/themes/tjrn/assets/images/logo-tjrn.png';
 
   public async fetchLatestNews(limit: number): Promise<NewsSlide[]> {
+    let slides = await this.tryFetchLocalRss(this.localRssUrl, limit);
+    if (slides.length > 0) return slides;
+
+    slides = await this.tryFetchApi(`${this.apiUrl}?size=${limit}`, limit, false);
+    if (slides.length > 0) return slides;
+
+    slides = await this.tryFetchApi(`${this.proxyUrl}${encodeURIComponent(`${this.apiUrl}?size=${limit}`)}`, limit, true);
+    if (slides.length > 0) return slides;
+
+    slides = await this.tryFetchHtml(this.htmlUrl, limit, false);
+    if (slides.length > 0) return slides;
+
+    slides = await this.tryFetchHtml(`${this.proxyUrl}${encodeURIComponent(this.htmlUrl)}`, limit, true);
+    if (slides.length > 0) return slides;
+
+    console.error('[Sistema] Falha crítica de extração de dados. Nenhuma fonte retornou dados válidos.');
+    return [];
+  }
+
+  private async tryFetchLocalRss(url: string, limit: number): Promise<NewsSlide[]> {
     try {
-      const response = await fetch(`${this.proxyUrl}${encodeURIComponent(this.newsUrl)}`);
-
-      if (!response.ok) {
-        return [];
-      }
-
-      const data = await response.json();
+      const response = await fetch(url);
+      if (!response.ok) return [];
+      
+      const xmlString = await response.text();
       const parser = new DOMParser();
-      const doc = parser.parseFromString(data.contents, 'text/html');
+      const doc = parser.parseFromString(xmlString, 'text/xml');
+      const items = Array.from(doc.querySelectorAll('item'));
+      
+      return items.slice(0, limit).map((item, index) => {
+        const title = item.querySelector('title')?.textContent || 'Sem título';
+        const rawDate = item.querySelector('pubDate')?.textContent || '';
+        const enclosure = item.querySelector('enclosure');
+        const imageUrl = enclosure?.getAttribute('url') || this.defaultImageUrl;
 
-      return this.extractNewsFromHtml(doc, limit);
-    } catch (error) {
-      console.error('Failed to fetch or parse news HTML', error);
+        let publishDate = rawDate;
+        if (rawDate.includes('+0000')) {
+          publishDate = new Date(rawDate).toLocaleDateString('pt-BR');
+        }
+
+        return {
+          id: `news-rss-${index}`,
+          type: 'NEWS',
+          headline: title,
+          imageUrl: imageUrl,
+          publishDate: publishDate || new Date().toLocaleDateString('pt-BR'),
+          durationMs: 15000,
+        };
+      });
+    } catch (e) {
       return [];
     }
   }
 
-  private extractNewsFromHtml(doc: Document, limit: number): NewsSlide[] {
-    const anchorTags = Array.from(doc.querySelectorAll('a[href]'));
-    const processedLinks = new Set<string>();
-    const newsSlides: NewsSlide[] = [];
-    const dateRegex = /\b(\d{2}\/\d{2}\/\d{4})\b/;
-
-    for (const anchor of anchorTags) {
-      if (newsSlides.length >= limit) {
-        break;
-      }
-
-      const href = anchor.getAttribute('href') || '';
+  private async tryFetchApi(url: string, limit: number, isProxy: boolean): Promise<NewsSlide[]> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return [];
       
-      if (!this.isValidNewsLink(href)) {
-        continue;
-      }
+      const rawData = await response.json();
+      const data = isProxy ? JSON.parse(rawData.contents) : rawData;
 
-      const fullUrl = this.resolveUrl(href);
+      if (!data?.content || !Array.isArray(data.content)) return [];
 
-      if (processedLinks.has(fullUrl)) {
-        continue;
-      }
-
-      const container = anchor.closest('article, div, li') || anchor;
-      const title = this.extractTitle(anchor, container);
-
-      if (!title || title.length < 15) {
-        continue;
-      }
-
-      processedLinks.add(fullUrl);
-
-      newsSlides.push({
-        id: `news-${newsSlides.length}`,
+      return data.content.slice(0, limit).map((item: any) => ({
+        id: `news-api-${item.id}`,
         type: 'NEWS',
-        headline: title,
-        imageUrl: this.extractImage(container),
-        publishDate: this.extractDate(container, dateRegex),
-        durationMs: 15000,
-      });
+        headline: item.titulo,
+        imageUrl: item.url_img || this.defaultImageUrl,
+        publishDate: new Date(item.data_publicacao).toLocaleDateString('pt-BR'),
+        durationMs: 15000
+      }));
+    } catch (e) {
+      return [];
     }
-
-    return newsSlides;
   }
 
-  private isValidNewsLink(href: string): boolean {
-    return href.includes('/noticias/') && href !== '/noticias/';
-  }
+  private async tryFetchHtml(url: string, limit: number, isProxy: boolean): Promise<NewsSlide[]> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return [];
+      
+      const rawData = isProxy ? await response.json() : null;
+      const htmlString = isProxy ? rawData.contents : await response.text();
 
-  private resolveUrl(path: string): string {
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return path;
-    }
-    return `${this.baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
-  }
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlString, 'text/html');
+      const anchors = Array.from(doc.querySelectorAll('a[href]'));
+      const regexData = /\b(\d{2}\/\d{2}\/\d{4})\b/;
+      const processedLinks = new Set<string>();
+      const newsSlides: NewsSlide[] = [];
 
-  private extractTitle(anchor: Element, container: Element): string {
-    let title = anchor.textContent?.trim() || anchor.getAttribute('title') || '';
-    
-    if (title.length < 15) {
-      const heading = container.querySelector('h1, h2, h3, h4');
-      if (heading) {
-        title = heading.textContent?.trim() || title;
+      for (const a of anchors) {
+        if (newsSlides.length >= limit) break;
+
+        const href = a.getAttribute('href') || '';
+        if (!href.includes('/noticias/') || href === '/noticias/') continue;
+
+        const fullUrl = href.startsWith('http') ? href : `https://www.tjrn.jus.br${href}`;
+        if (processedLinks.has(fullUrl)) continue;
+
+        const container = a.closest('article, div, li') || a.parentElement || a;
+        let titulo = a.textContent?.trim() || a.getAttribute('title')?.trim() || '';
+
+        if (titulo.length < 15) {
+          const heading = container.querySelector('h1, h2, h3, h4');
+          if (heading) titulo = heading.textContent?.trim() || '';
+        }
+
+        if (titulo.length < 15) continue;
+
+        const imgTag = container.querySelector('img');
+        let imageUrl = this.defaultImageUrl;
+        if (imgTag) {
+          const src = imgTag.getAttribute('src') || imgTag.getAttribute('data-src') || '';
+          if (src) imageUrl = src.startsWith('http') ? src : `https://www.tjrn.jus.br${src}`;
+        }
+
+        const textContent = container.textContent || '';
+        const matchData = textContent.match(regexData);
+        const publishDate = matchData ? matchData[1] : new Date().toLocaleDateString('pt-BR');
+
+        processedLinks.add(fullUrl);
+        newsSlides.push({
+          id: `news-html-${newsSlides.length}`,
+          type: 'NEWS',
+          headline: titulo,
+          imageUrl: imageUrl,
+          publishDate: publishDate,
+          durationMs: 15000,
+        });
       }
-    }
-    
-    return title;
-  }
 
-  private extractImage(container: Element): string {
-    const imgTag = container.querySelector('img');
-    
-    if (!imgTag) {
-      return this.defaultImageUrl;
+      return newsSlides;
+    } catch (e) {
+      return [];
     }
-
-    const src = imgTag.getAttribute('src');
-    
-    if (!src) {
-      return this.defaultImageUrl;
-    }
-
-    return this.resolveUrl(src);
-  }
-
-  private extractDate(container: Element, dateRegex: RegExp): string {
-    const containerText = container.textContent || '';
-    const dateMatch = containerText.match(dateRegex);
-    
-    if (dateMatch) {
-      return dateMatch[1];
-    }
-    
-    return new Date().toLocaleDateString('pt-BR');
   }
 }
