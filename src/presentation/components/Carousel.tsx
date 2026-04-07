@@ -48,10 +48,10 @@ export const Carousel: React.FC<CarouselProps> = ({ slides }) => {
 
   const renderWeather = (slide: WeatherSlide) => 
     renderSlideLayout('PREVISÃO DO TEMPO', slide.city, (
-      <>
-        <h2 style={{ fontSize: '8rem', margin: '20px 0', color: '#fff' }}>{slide.temperature}°C</h2>
+      <div style={styles.weatherContent}>
+        <h2 style={styles.temperature}>{slide.temperature}°C</h2>
         <p style={styles.utilityText}>{slide.condition}</p>
-      </>
+      </div>
     ), slide.imageUrl);
 
   const renderTrivia = (slide: TriviaSlide) => 
@@ -114,7 +114,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   logoContainer: {
     display: 'flex',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
     width: '100%'
   },
   logo: {
@@ -159,15 +159,28 @@ const styles: Record<string, React.CSSProperties> = {
   },
   utilityText: {
     color: '#fff',
-    fontSize: 'clamp(1.5rem, 3vw, 2.5rem)',
+    fontSize: 'clamp(1.2rem, 2.5vw, 2.2rem)',
     lineHeight: '1.4',
-    maxWidth: '90%',
+    maxWidth: '85%',
     margin: 0,
     textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
     display: '-webkit-box',
     WebkitLineClamp: 5,
     WebkitBoxOrient: 'vertical',
     overflow: 'hidden'
+  },
+  weatherContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: '10px'
+  },
+  temperature: {
+    fontSize: 'clamp(4rem, 10vw, 8rem)',
+    margin: '10px 0',
+    color: '#fff',
+    lineHeight: '1',
+    textShadow: '4px 4px 8px rgba(0,0,0,0.5)'
   },
   progressContainer: {
     position: 'absolute',

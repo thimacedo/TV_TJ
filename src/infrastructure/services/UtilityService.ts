@@ -27,7 +27,7 @@ export class UtilityService implements IUtilityService {
         city: 'Natal/RN',
         temperature: temp,
         condition: condition,
-        imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80',
+        imageUrl: 'https://picsum.photos/seed/natal-rn-weather/1920/1080',
         durationMs: 10000,
       };
     } catch (error) {
@@ -47,7 +47,7 @@ export class UtilityService implements IUtilityService {
       
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: 'Gere 3 notas curtas de utilidade pública para os cidadãos do Rio Grande do Norte (ex: dicas de saúde, direitos do consumidor, curiosidades locais, alertas de trânsito ou clima). Retorne APENAS um JSON array válido com objetos contendo "title" (título curto) e "content" (texto da nota de até 150 caracteres).',
+        contents: 'Gere 3 notas curtas de utilidade pública para os cidadãos do Rio Grande do Norte (ex: dicas de saúde, direitos do consumidor, curiosidades locais, alertas de trânsito ou clima). Retorne APENAS um JSON array válido com objetos contendo "title" (título curto), "content" (texto da nota de até 150 caracteres) e "imageKeyword" (uma palavra-chave em inglês para buscar uma imagem relevante no Unsplash, ex: "health", "traffic", "beach", "mosquito").',
         config: {
           responseMimeType: 'application/json',
           responseSchema: {
@@ -56,9 +56,10 @@ export class UtilityService implements IUtilityService {
               type: Type.OBJECT,
               properties: {
                 title: { type: Type.STRING },
-                content: { type: Type.STRING }
+                content: { type: Type.STRING },
+                imageKeyword: { type: Type.STRING }
               },
-              required: ["title", "content"]
+              required: ["title", "content", "imageKeyword"]
             }
           }
         }
@@ -69,18 +70,12 @@ export class UtilityService implements IUtilityService {
       
       const items = JSON.parse(jsonStr);
       
-      const images = [
-        'https://images.unsplash.com/photo-1508138221679-760a23a2285b?auto=format&fit=crop&w=1920&q=80',
-        'https://images.unsplash.com/photo-1498698365971-460193132e18?auto=format&fit=crop&w=1920&q=80',
-        'https://images.unsplash.com/photo-1523362628745-0c5fbc5b08c9?auto=format&fit=crop&w=1920&q=80'
-      ];
-
       return items.map((item: any, index: number) => ({
         id: `trivia-${Date.now()}-${index}`,
         type: 'TRIVIA',
         title: item.title,
         content: item.content,
-        imageUrl: images[index % images.length],
+        imageUrl: `https://picsum.photos/seed/${encodeURIComponent(item.imageKeyword)}/1920/1080`,
         durationMs: 12000,
       }));
 
@@ -97,7 +92,7 @@ export class UtilityService implements IUtilityService {
       city: 'Natal/RN',
       temperature: 28,
       condition: 'Ensolarado com poucas nuvens',
-      imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80',
+      imageUrl: 'https://picsum.photos/seed/natal-rn-sunny/1920/1080',
       durationMs: 10000,
     };
   }
@@ -109,7 +104,7 @@ export class UtilityService implements IUtilityService {
         type: 'TRIVIA',
         title: 'Curiosidade Potiguar',
         content: 'O Rio Grande do Norte é o maior produtor de sal marinho do Brasil, responsável por cerca de 95% da produção nacional.',
-        imageUrl: 'https://images.unsplash.com/photo-1508138221679-760a23a2285b?auto=format&fit=crop&w=1920&q=80',
+        imageUrl: 'https://picsum.photos/seed/salt/1920/1080',
         durationMs: 12000,
       },
       {
@@ -117,7 +112,7 @@ export class UtilityService implements IUtilityService {
         type: 'TRIVIA',
         title: 'Tábua de Marés',
         content: 'A Praia de Ponta Negra registra hoje maré alta às 15:30 (2.4m) e maré baixa às 09:15 (0.3m).',
-        imageUrl: 'https://images.unsplash.com/photo-1498698365971-460193132e18?auto=format&fit=crop&w=1920&q=80',
+        imageUrl: 'https://picsum.photos/seed/ocean/1920/1080',
         durationMs: 12000,
       },
       {
@@ -125,7 +120,7 @@ export class UtilityService implements IUtilityService {
         type: 'TRIVIA',
         title: 'Dica de Saúde',
         content: 'Beba pelo menos 2 litros de água por dia para manter o corpo hidratado, especialmente no clima tropical de Natal.',
-        imageUrl: 'https://images.unsplash.com/photo-1523362628745-0c5fbc5b08c9?auto=format&fit=crop&w=1920&q=80',
+        imageUrl: 'https://picsum.photos/seed/water/1920/1080',
         durationMs: 10000,
       }
     ];
