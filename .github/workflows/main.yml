@@ -1,0 +1,25 @@
+name: Continuous 24/7 Live Stream
+
+on:
+  schedule:
+    - cron: '0 */5 * * *' # Reinicia a cada 5 horas para evitar timeout de 6h
+  workflow_dispatch: # Permite início manual
+
+jobs:
+  streaming:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Start Streaming
+        run: |
+          ffmpeg -re -stream_loop -1 -i "${{ secrets.STREAM_SOURCE_URL }}" \
+          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
+          -pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 \
+          -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"
