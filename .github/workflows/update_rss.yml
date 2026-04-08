@@ -1,0 +1,36 @@
+name: Update RSS Feed
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-rss:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Generate RSS
+        run: python scripts/generate_rss.py -o public/tjrn_noticias_imagens.xml
+
+      - name: Commit & push if changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: update RSS feed [auto]'
+          file_pattern: 'public/tjrn_noticias_imagens.xml'
+          skip_dirty_check: false
+          commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>

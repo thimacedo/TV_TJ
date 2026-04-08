@@ -5,7 +5,7 @@ export class NewsService implements INewsService {
   private readonly apiUrl = 'https://tjrn.jus.br/api/noticias';
   private readonly htmlUrl = 'https://www.tjrn.jus.br/noticias/';
   private readonly proxyUrl = 'https://api.allorigins.win/get?url=';
-  private readonly localRssUrl = './tjrn_noticias_imagens.xml';
+  private readonly localRssUrl = '/tjrn_noticias_imagens.xml';
   private readonly defaultImageUrl = 'https://tjrn.jus.br/wp-content/themes/tjrn/assets/images/logo-tjrn.png';
 
   public async fetchLatestNews(limit: number): Promise<NewsSlide[]> {
